@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: "traefik:v2.5"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--experimental.localPlugins.statusdonrouters.moduleName=github.com/MrNinso/statusdonrouters"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.statusdonrouters.plugin.statusdonrouters.ip=${IP}"
+      - "traefik.http.middlewares.statusdonrouters.plugin.statusdonrouters.port=${PORT}"
+      - "traefik.http.middlewares.statusdonrouters.plugin.statusdonrouters.serverPrefix=${SERVER_PREFIX}"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ".:/plugins-local/src/github.com/MrNinso/statusdonrouters" # change this to the path of your cloned plugin repository
+
+  whoami:
+    image: "traefik/whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.routers.whoami.middlewares=statusdonrouters@docker"
+  whoami2:
+    image: "traefik/whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami2.rule=Host(`127.0.0.1`)"
+      - "traefik.http.routers.whoami2.entrypoints=web"
+      - "traefik.http.routers.whoami2.middlewares=statusdonrouters@docker"

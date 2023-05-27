@@ -3,7 +3,9 @@ package statusdonrouters
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 )
@@ -13,17 +15,11 @@ type Config struct {
 	Ip           string `json:"ip"`
 	Port         string `json:"port"`
 	ServerPrefix string `json:"serverPrefix"`
-	RotuerPrefix string `json:"rotuerPrefix"`
 }
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
-	return &Config{
-		Ip:           "localhost",
-		Port:         "8000",
-		ServerPrefix: "traefik",
-		RotuerPrefix: "test",
-	}
+	return &Config{}
 }
 
 // Demo a Demo plugin.
@@ -42,23 +38,64 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}, nil
 }
 
+type Metric struct {
+	Server       string `json:"server"`
+	Host         string `json:"host"`
+	Method       string `json:"method"`
+	Path         string `json:"path"`
+	RequestSize  int    `json:"requestSize"`
+	ResponseSize int    `json:"responseSize"`
+}
+
 func (p *Plugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// create a custom response writer to intercept the response
 	crw := &customResponseWriter{ResponseWriter: rw}
+
+	m := &Metric{}
+
+	p.next.ServeHTTP(crw, req)
+
 	// dump the request and get its size
 	dump, err := httputil.DumpRequest(req, true)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	reqSize := len(dump)
+	m.Server = p.config.ServerPrefix
+	m.Host = req.Host
 
-	p.next.ServeHTTP(crw, req)
+	m.Method = req.Method
+	m.Path = req.URL.Path
+	m.RequestSize = len(dump)
+	m.ResponseSize = crw.size
 
-	resSize := crw.size
+	go p.send(m)
+}
 
-	fmt.Printf("Request size: %d bytes\n", reqSize)
-	fmt.Printf("Response size: %d bytes\n", resSize)
+func (p *Plugin) send(metric *Metric) {
+	v, err := json.Marshal(metric)
+
+	if err != nil {
+		// TODO não sei o que fazer aqui
+		return
+	}
+
+	h := fmt.Sprint(
+		p.config.Ip,
+		":",
+		p.config.Port,
+	)
+
+	conn, err := net.Dial("udp", h)
+
+	if err != nil {
+		// TODO não sei o que fazer aqui
+		return
+	}
+
+	defer conn.Close()
+
+	fmt.Fprint(conn, string(v))
 }
 
 type customResponseWriter struct {
