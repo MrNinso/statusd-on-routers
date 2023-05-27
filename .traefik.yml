@@ -1,12 +1,14 @@
-displayName: Demo Plugin
+displayName: StatusD on routers
 type: middleware
 iconPath: .assets/icon.png
 
-import: github.com/traefik/plugindemo
+import: github.com/MrNinso/statusdonrouters
 
-summary: '[Demo] Add Request Header'
+summary: 'give metrics per router'
 
 testData:
-  Headers:
-    X-Demo: test
-    X-URL: '{{URL}}'
+  ip: localhost
+  port: 8000
+  serverPrefix: 'traefik'
+  rotuerPrefix: 'test'
+
