@@ -1,3 +1,3 @@
-module github.com/traefik/plugindemo
+module github.com/MrNinso/statusdonrouters
 
 go 1.19
